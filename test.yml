@@ -1,0 +1,68 @@
+heat_template_version: 2014-10-16
+
+parameters:
+
+ instance_name:
+  type: string
+  description: Instance name as it will be created in Openstack
+  default: Server
+
+ image_name:
+  type: string
+  description:  Image Name
+  default: cirros
+
+ flavor_name:
+  type: string
+  description:  CPU/Mem/Disk Flavor
+  default: m1.tiny
+
+resources:
+
+ private_net:
+  type: OS::Neutron::Net
+  properties:
+   admin_state_up: True
+   name: private_network
+
+ private_subnet:
+  type: OS::Neutron::Subnet
+  properties:
+   network_id: { get_resource: private_net }
+   cidr: 192.168.201.0/24
+   gateway_ip: 192.168.201.1
+
+
+ instance_port:
+  type: OS::Neutron::Port
+  properties:
+   network_id: {get_resource: private_net }
+
+   
+
+ instance_external_port:
+  type: OS::Neutron::Port
+  properties:
+   network: public
+   fixed_ips:
+    - subnet: public_subnet
+    
+ volume0:
+    type: OS::Cinder::Volume
+    properties:
+      name  : Volume
+      image : cirros
+      size : 10
+
+
+ instance:
+  type: OS::Nova::Server
+  properties:
+   name: {get_param: instance_name}
+   image: {get_param: image_name}
+   flavor: {get_param: flavor_name}
+   availability_zone: nova
+   block_device_mapping: [{ device_name: "vda", volume_id : { get_resource : volume0 }}]
+   networks:
+    - port: { get_resource: instance_external_port }
+    - port: { get_resource: instance_port }
